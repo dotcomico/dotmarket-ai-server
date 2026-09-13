@@ -40,15 +40,24 @@ def _get_client() -> OpenAI:
     return _client
 
 
-def chat(messages: list[dict], tools: list[dict] | None = None) -> ChatCompletion:
+def chat(
+    messages: list[dict], tools: list[dict] | None = None, temperature: float = 0.0
+) -> ChatCompletion:
     """Sends messages to the LLM and returns the raw ChatCompletion response.
 
     Args:
         messages: OpenAI chat message dicts (role/content, etc.).
         tools: OpenAI function-calling tool definitions (see tool_schema.py),
             or None to call without tools.
+        temperature: defaults to 0 (deterministic). Tool-calling with small
+            local models via Ollama is noticeably flakier at higher
+            temperatures — the model can emit its intended call as free-text
+            inside `content` instead of the structured `tool_calls` field.
+            Low temperature doesn't eliminate that failure mode but cuts it
+            a lot, and determinism is what you want for tool selection
+            anyway (it's not a creative-writing task).
     """
-    kwargs = {"model": _MODEL, "messages": messages}
+    kwargs = {"model": _MODEL, "messages": messages, "temperature": temperature}
     if tools is not None:
         kwargs["tools"] = tools
     return _get_client().chat.completions.create(**kwargs)
