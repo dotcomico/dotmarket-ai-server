@@ -109,3 +109,8 @@ across requests, and no auth. This mirrors `mcp-server`'s current tool
 surface, which is read-only product/category lookups with no auth either
 (see `mcp-server/README.md`'s "Known gaps" for what's intentionally not
 built yet).
+
+## Known issues / improvements
+
+Tracked in [`KNOWN_ISSUES.md`](KNOWN_ISSUES.md) and
+[`IMPROVEMENT_SUGGESTIONS.md`](IMPROVEMENT_SUGGESTIONS.md) rather than here.
