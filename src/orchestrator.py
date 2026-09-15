@@ -38,8 +38,43 @@ MAX_HISTORY_MESSAGES = 10
 
 SYSTEM_PROMPT = (
     "You are the Dotmarket shopping assistant. Answer only using the tools "
-    "available to you; don't invent prices, stock, or product details."
+    "available to you; don't invent prices, stock, or product details.\n\n"
+    "- Never show raw JSON, code blocks, or tool output to the user — always "
+    "answer in plain sentences, as if talking to a customer.\n"
+    "- For questions about a specific product, its price, or its stock, use "
+    "get_products or get_products_by_category. Use get_category_tree only "
+    "for questions about what categories/sections exist — never for price, "
+    "stock, or 'cheapest' questions.\n"
+    "- When the user refers back to 'that one', 'it', or similar, resolve it "
+    "to the last specific product actually discussed in the conversation, "
+    "not the last tool call you happened to make.\n"
+    "- Answer the literal question asked. 'Cheapest' means name one product "
+    "and its price, not a category summary or a stock total."
 )
+
+# Keywords that mean the user wants price/stock data, which get_category_tree
+# never has. The local model (qwen2.5:7b) frequently calls get_category_tree
+# first anyway and doesn't reliably self-correct afterwards, so this drives a
+# deterministic nudge rather than relying on the model to catch its own
+# mistake (see orchestrator's tool-call loop below).
+_PRICE_OR_STOCK_KEYWORDS = (
+    "price", "cost", "cheap", "expensive", "stock", "available",
+    "how many", "left", "$",
+)
+
+WRONG_TOOL_REMINDER = (
+    "Reminder: get_category_tree has no price or stock data. The user's "
+    "question was about price, stock, or which product is cheapest — call "
+    "get_products_by_category or get_products now to actually answer it."
+)
+
+
+def _mentions_price_or_stock(text: str) -> bool:
+    """True if `text` looks like it's asking about price/stock/cheapest —
+    the cases get_category_tree can never answer."""
+    lowered = text.lower()
+    return any(keyword in lowered for keyword in _PRICE_OR_STOCK_KEYWORDS)
+
 
 # Frontend message roles -> OpenAI chat roles.
 _ROLE_MAP = {"user": "user", "bot": "assistant"}
@@ -91,6 +126,7 @@ async def ask(prompt: str, history: list[dict] | None = None) -> str:
 
             messages.append(message.model_dump(exclude_none=True))
 
+            wrong_tool_used = False
             for call in message.tool_calls:
                 args = json.loads(call.function.arguments)
                 result = await session.call_tool(call.function.name, args)
@@ -101,6 +137,13 @@ async def ask(prompt: str, history: list[dict] | None = None) -> str:
                 messages.append(
                     {"role": "tool", "tool_call_id": call.id, "content": result_text}
                 )
+                if call.function.name == "get_category_tree" and _mentions_price_or_stock(
+                    prompt
+                ):
+                    wrong_tool_used = True
+
+            if wrong_tool_used:
+                messages.append({"role": "system", "content": WRONG_TOOL_REMINDER})
 
         return "(gave up after too many tool-call rounds without a final answer)"
 
