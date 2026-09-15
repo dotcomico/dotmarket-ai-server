@@ -22,8 +22,14 @@ load_dotenv()
 app = FastAPI(title="ai-server")
 
 
+class HistoryTurn(BaseModel):
+    role: str
+    text: str
+
+
 class ChatRequest(BaseModel):
     message: str
+    history: list[HistoryTurn] = []
 
 
 class ChatResponse(BaseModel):
@@ -33,7 +39,8 @@ class ChatResponse(BaseModel):
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        reply = await ask(request.message)
+        history = [turn.model_dump() for turn in request.history]
+        reply = await ask(request.message, history)
         return ChatResponse(reply=reply)
     except Exception as exc:
         return JSONResponse(
