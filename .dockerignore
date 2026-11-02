@@ -1,0 +1,13 @@
+.env
+.env.*
+.git
+.gitignore
+.dockerignore
+Dockerfile
+.vscode
+venv
+.venv
+**/__pycache__
+*.md
+logs
+src/*smoketest.py

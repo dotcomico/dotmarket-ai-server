@@ -18,3 +18,16 @@ found on 2026-09-15 (see `KNOWN_ISSUES.md` #3 and `IMPROVEMENT_SUGGESTIONS.md`).
 
 5. Going back to that dairy product — what was its price again?
    - Expect: correctly recalls the dairy product's price, not "no dairy products in the current category."
+
+## Skin care regression (`KNOWN_ISSUES.md` #5)
+
+Start a new conversation.
+
+1. do you sell only food?
+   - Expect: only real non-food categories (Household & Cleaning, Personal Care, Electronics).
+
+2. i have acne, what do you have that can help?
+   - Expect: no outside brands, no treatment advice, and no invented products.
+
+3. i want skin care products. list them and tell me the cheapest
+   - Expect: real Body Care items, with Botanical Bliss - Handmade Soap Bar ($6.50) as the cheapest.
