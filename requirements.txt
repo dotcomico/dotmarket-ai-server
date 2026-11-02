@@ -1,5 +1,9 @@
-openai>=1.0.0
-mcp<2
-python-dotenv>=1.0.0
-fastapi>=0.110.0
-uvicorn>=0.29.0
+openai==3.13.0
+mcp==1.30.0
+python-dotenv==1.2.3
+fastapi==0.141.1
+starlette==1.6.0
+uvicorn==0.52.4
+# Transitive; floors keep Docker rebuilds above versions with known advisories.
+PyJWT>=2.15.1
+certifi>=2026.10.18
