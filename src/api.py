@@ -9,6 +9,7 @@ Global/shared: this is the one HTTP entrypoint ai-server exposes. Run with
 `uvicorn src.api:app --port <AI_SERVER_PORT>` from ai-server/.
 """
 import os
+from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -23,7 +24,7 @@ app = FastAPI(title="ai-server")
 
 
 class HistoryTurn(BaseModel):
-    role: str
+    role: Literal["user", "bot"]
     text: str
 
 

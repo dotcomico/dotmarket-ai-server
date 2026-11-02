@@ -104,8 +104,9 @@ debugging a broken link in the chain above without the full HTTP layer.
 
 ## Scope
 
-Single-turn only — each `/chat` call is a fresh conversation with no memory
-across requests, and no auth. This mirrors `mcp-server`'s current tool
+Multi-turn, with no server-side memory: the client sends earlier messages in
+`history` on each `/chat` call, and only the `user` and `bot` roles are
+accepted. There is no auth. This mirrors `mcp-server`'s current tool
 surface, which is read-only product/category lookups with no auth either
 (see `mcp-server/README.md`'s "Known gaps" for what's intentionally not
 built yet).
