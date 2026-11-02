@@ -64,6 +64,7 @@ Edit `.env`:
 | `LLM_BASE_URL` | no | Point at a local OpenAI-compatible server (e.g. Ollama at `http://localhost:11434/v1`) instead of real OpenAI, for free local development |
 | `OPENAI_MODEL` | no | Default `gpt-4o-mini`. With Ollama, pick a tool-capable, non-"thinking" model — `qwen2.5:7b` works well; "thinking" models (qwen3.5, gemma4) add 15-20s per call generating chain-of-thought before every answer |
 | `AI_SERVER_PORT` | no | Default `8100` — port the FastAPI HTTP endpoint listens on |
+| `CHAT_TRACE_ENABLED` | no | Default off. Set to `true` in development to record chats — see [Chat tracing](#chat-tracing) |
 
 ## Running
 
@@ -101,6 +102,25 @@ There are also standalone smoke-test scripts (`src/tool_selection_smoketest.py`,
 `src/tool_dispatch_smoketest.py`, `src/grounded_answer_smoketest.py`) that
 each verify one step of the MCP/LLM loop in isolation — useful when
 debugging a broken link in the chain above without the full HTTP layer.
+
+### Chat tracing
+
+The chat widget only shows the final reply. To see why the bot answered the
+way it did, set `CHAT_TRACE_ENABLED=true` in `.env` and restart. Each
+conversation then gets its own file, with one JSON line per turn:
+
+```
+logs/chats/<conversationId>.jsonl
+```
+
+Each line holds the message, the history sent, every tool call with its
+arguments and result, any injected reminder, the model, the duration, and
+the final reply or error. A failed turn keeps the rounds that finished before
+it, and a failed log write only prints a warning.
+
+Keep this off in production: the files contain what customers type, and
+nothing limits their size or deletes them. `logs/` is ignored by git and
+Docker. When a trace shows a real bug, add it to `KNOWN_ISSUES.md`.
 
 ## Scope
 

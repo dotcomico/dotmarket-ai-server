@@ -12,9 +12,10 @@ No HTTP API layer here, but callers can now pass in prior conversation
 turns: ask() accepts a `history` of {role, text} turns (the frontend's
 display-message vocabulary) and seeds the LLM's message list with a
 trimmed window of that history before the new prompt. There's still no
-persistence — the caller (api.py) is responsible for keeping and
+conversation memory — the caller (api.py) is responsible for keeping and
 resending history across calls; ask() itself remains stateless between
-invocations.
+invocations. An optional ChatTrace records each turn for later
+investigation, but nothing ever reads it back into a conversation.
 
 Prerequisites: same as the smoke tests —
   - mcp-server running (`python -m src.server`, from mcp-server/)
@@ -24,6 +25,7 @@ import asyncio
 import json
 import sys
 
+from src.chat_trace import ChatTrace
 from src.llm_client import chat
 from src.mcp_client import mcp_session
 from src.tool_schema import mcp_tools_to_openai
@@ -96,7 +98,11 @@ def _build_seed_messages(prompt: str, history: list[dict] | None) -> list[dict]:
     )
 
 
-async def ask(prompt: str, history: list[dict] | None = None) -> str:
+async def ask(
+    prompt: str,
+    history: list[dict] | None = None,
+    trace: ChatTrace | None = None,
+) -> str:
     """Sends `prompt` (plus any prior `history`) through the MCP tool loop
     and returns the model's final natural-language answer, grounded in real
     backend data.
@@ -106,6 +112,8 @@ async def ask(prompt: str, history: list[dict] | None = None) -> str:
     MAX_HISTORY_MESSAGES messages and converted to OpenAI role/content
     messages before the new prompt. Empty/None history behaves exactly like
     a fresh, single-turn conversation.
+
+    `trace`, when given, is filled in as the loop runs (see chat_trace.py).
 
     Loops because a single turn can contain multiple tool_calls (e.g. the
     model looking up two different products), and because after seeing
@@ -120,6 +128,9 @@ async def ask(prompt: str, history: list[dict] | None = None) -> str:
         for _ in range(MAX_TOOL_ROUNDS):
             response = chat(messages=messages, tools=tools)
             message = response.choices[0].message
+            round_trace = (
+                trace.start_round(response.model, message.content) if trace else None
+            )
 
             if not message.tool_calls:
                 return message.content
@@ -137,6 +148,10 @@ async def ask(prompt: str, history: list[dict] | None = None) -> str:
                 messages.append(
                     {"role": "tool", "tool_call_id": call.id, "content": result_text}
                 )
+                if round_trace:
+                    round_trace["toolCalls"].append(
+                        {"name": call.function.name, "args": args, "result": result_text}
+                    )
                 if call.function.name == "get_category_tree" and _mentions_price_or_stock(
                     prompt
                 ):
@@ -144,6 +159,8 @@ async def ask(prompt: str, history: list[dict] | None = None) -> str:
 
             if wrong_tool_used:
                 messages.append({"role": "system", "content": WRONG_TOOL_REMINDER})
+                if round_trace:
+                    round_trace["reminderInjected"] = True
 
         return "(gave up after too many tool-call rounds without a final answer)"
 
